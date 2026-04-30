@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+// Define the data structure for news items
 interface NewsItem {
   title: string;
   date: string;
@@ -14,6 +15,7 @@ export function NewsList() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // listen to dropdown changes to load news for selected ticker
   useEffect(() => {
     const select = document.getElementById("bar-select") as HTMLSelectElement;
     if (select?.value) setTicker(select.value);
@@ -27,6 +29,7 @@ export function NewsList() {
     return () => select?.removeEventListener("change", handler);
   }, []);
 
+  // load news items when ticker changes
   useEffect(() => {
     if (!ticker) return;
     setNewsList([]);
@@ -38,6 +41,7 @@ export function NewsList() {
     });
   }, [ticker]);
 
+  // draw news list
   return (
     <div style={{ width: "100%", height: "100%", overflowY: "auto", padding: "0.5rem" }}>
       <p style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>
@@ -98,12 +102,13 @@ export function NewsList() {
   );
 }
 
-// Load all txt file contents at build time
+// load all txt file contents at build time
 const allNewsFiles = import.meta.glob("../../data/stocknews/**/*.txt", {
   as: "raw",
   eager: false,
 });
 
+// load and parse news items for a given ticker
 async function loadNewsForTicker(ticker: string): Promise<NewsItem[]> {
   const prefix = `../../data/stocknews/${ticker}/`;
 
@@ -122,6 +127,7 @@ async function loadNewsForTicker(ticker: string): Promise<NewsItem[]> {
   return items;
 }
 
+// parse the raw content of a news txt file into a NewsItem object
 function parseNewsFile(raw: string, filepath: string): NewsItem {
   const lines = raw.split("\n");
   let title = "";

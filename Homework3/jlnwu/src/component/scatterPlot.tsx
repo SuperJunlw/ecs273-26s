@@ -4,6 +4,7 @@ import { isEmpty, debounce } from "lodash";
 
 import { ComponentSize, Margin } from "../types";
 
+// define the data structure for t-SNE rows
 interface TSNERow {
   ticker: string;
   x: number;
@@ -13,6 +14,7 @@ interface TSNERow {
 
 const margin = { left: 60, right: 120, top: 20, bottom: 60 } as Margin;
 
+// color for each sector
 const SECTOR_COLORS: Record<string, string> = {
   "Energy":      "red",
   "Industrials": "orange",
@@ -27,7 +29,7 @@ export function TSNEScatter() {
   const svgRef       = useRef<SVGSVGElement>(null);
   const [rows, setRows] = useState<TSNERow[]>([]);
 
-  // Load tsne.csv once on mount
+  // load tsne.csv once on mount
   useEffect(() => {
     d3.csv("/data/tsne.csv").then((raw) => {
       const parsed: TSNERow[] = raw.map((d) => ({
@@ -40,7 +42,7 @@ export function TSNEScatter() {
     });
   }, []);
 
-  // Listen to dropdown changes to highlight selected stock
+  // listen to dropdown changes to highlight selected stock
   useEffect(() => {
     const redraw = () => {
       if (!containerRef.current || !svgRef.current || isEmpty(rows)) return;
@@ -52,7 +54,7 @@ export function TSNEScatter() {
     return () => { d3.select("#bar-select").on("change.tsne", null); };
   }, [rows]);
 
-  // Resize observer
+  // redraw on container resize
   useEffect(() => {
     if (!containerRef.current || !svgRef.current) return;
 
@@ -93,27 +95,18 @@ function drawChart(
   overrideSelected?: string
 ) {
   const svg = d3.select(svgElement);
-  svg.selectAll("*").remove();
+  svg.selectAll("*").remove(); // clear previous redenred content
 
+  // inner width and height of the chart area 
   const innerW = width  - margin.left - margin.right;
   const innerH = height - margin.top  - margin.bottom;
 
+  // get the currently selected stock from the dropdown, or use the selected stock
   const selectedStock = overrideSelected
     ?? (d3.select("#bar-select").node() as HTMLSelectElement)?.value
     ?? "";
 
-  const xExtent = d3.extent(rows, (d) => d.x) as [number, number];
-  const yExtent = d3.extent(rows, (d) => d.y) as [number, number];
-
-  const xScale = d3.scaleLinear()
-    .domain([xExtent[0] - 5, xExtent[1] + 5])
-    .range([margin.left, width - margin.right]);
-
-  const yScale = d3.scaleLinear()
-    .domain([yExtent[0] - 5, yExtent[1] + 5])
-    .range([height - margin.bottom, margin.top]);
-
-  // Clip path
+  // clip path
   svg.append("defs")
     .append("clipPath")
     .attr("id", "tsne-clip")
@@ -122,13 +115,25 @@ function drawChart(
     .attr("y", margin.top)
     .attr("width",  innerW)
     .attr("height", innerH);
+  
+  // compute the scales based on data extents
+  const xExtent = d3.extent(rows, (d) => d.x) as [number, number];
+  const yExtent = d3.extent(rows, (d) => d.y) as [number, number];
 
-  // X axis
+  // create scales for x and y axes/
+  const xScale = d3.scaleLinear()
+    .domain([xExtent[0] - 5, xExtent[1] + 5])
+    .range([margin.left, width - margin.right]);
+
+  const yScale = d3.scaleLinear()
+    .domain([yExtent[0] - 5, yExtent[1] + 5])
+    .range([height - margin.bottom, margin.top]);
+
+  // draw x and y axes
   const xAxisG = svg.append("g")
     .attr("transform", `translate(0, ${height - margin.bottom})`)
     .call(d3.axisBottom(xScale).ticks(5));
 
-  // Y axis
   const yAxisG = svg.append("g")
     .attr("transform", `translate(${margin.left}, 0)`)
     .call(d3.axisLeft(yScale).ticks(5));
@@ -147,7 +152,7 @@ function drawChart(
     .text("t-SNE 1")
     .style("font-size", ".8rem");
 
-  // Title
+  // title
   svg.append("g")
     .append("text")
     .attr("transform", `translate(${width / 2}, ${height - margin.top + 5})`)
@@ -156,14 +161,15 @@ function drawChart(
     .style("font-weight", "bold")
     .text("t-SNE of Stock Latent Representations");
 
-  // Points group with clip path
+  // group for points, clipped to chart area
   const pointsG = svg.append("g").attr("clip-path", "url(#tsne-clip)");
 
-  // Draw non-selected points first, selected on top
+  // draw non-selected points first, selected on top
   const sorted = [...rows].sort((a, b) =>
     a.ticker === selectedStock ? 1 : b.ticker === selectedStock ? -1 : 0
   );
 
+  // draw points
   sorted.forEach((d) => {
     const isSelected = d.ticker === selectedStock;
     const color = SECTOR_COLORS[d.sector] ?? "#999";
@@ -178,11 +184,12 @@ function drawChart(
       .attr("opacity", isSelected ? 1 : 0.75)
       .attr("cursor", "pointer")
       .on("click", () => {
-        // Only redraw scatter plot with clicked ticker, don't touch dropdown
+        // Only redraw scatter plot with clicked ticker
         const { width, height } = (svgElement.parentElement as HTMLElement).getBoundingClientRect();
         drawChart(svgElement, rows, width, height, d.ticker);
       });
 
+    // show ticker label if this point is selected
     if (isSelected) {
       pointsG.append("text")
         .attr("x", xScale(d.x) + 12)
@@ -194,7 +201,7 @@ function drawChart(
     }
   });
 
-  // Legend
+  // legend
   const sectors = Object.keys(SECTOR_COLORS);
   const legend = svg.append("g")
     .attr("transform", `translate(${width - margin.right + 10}, ${margin.top})`);
@@ -211,7 +218,7 @@ function drawChart(
       .text(sector);
   });
 
-  // Zoom (both axes) — attached to svg directly
+  // zooming and panning
   const zoom = d3.zoom<SVGSVGElement, unknown>()
     .scaleExtent([0.5, 20])
     .translateExtent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])

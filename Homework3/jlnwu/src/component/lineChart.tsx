@@ -4,6 +4,7 @@ import { isEmpty, debounce } from "lodash";
 
 import { ComponentSize, Margin } from "../types";
 
+//Define the data structure for stock data rows
 interface StockRow {
   date:  Date;
   open:  number;
@@ -12,15 +13,17 @@ interface StockRow {
   close: number;
 }
 
-type LineKey = "open" | "high" | "low" | "close";
+type LineKey = "open" | "high" | "low" | "close"; // Keys for the different stock price lines
 
 const margin = { left: 60, right: 100, top: 20, bottom: 80 } as Margin;
 
+// line chart component
 export function LineChart() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef       = useRef<SVGSVGElement>(null);
-  const [rows, setRows] = useState<StockRow[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null); //reference to the chart container div
+  const svgRef       = useRef<SVGSVGElement>(null);  //reference to the svg element where the chart is drawn
+  const [rows, setRows] = useState<StockRow[]>([]); //state to hold the loaded stock data rows
 
+  // load data when the component is initially appeared and when the value of the dropdown changes
   useEffect(() => {
     const initialStock = (d3.select("#bar-select").node() as HTMLSelectElement)?.value ?? "";
     if (initialStock) loadData(initialStock, setRows);
@@ -34,9 +37,11 @@ export function LineChart() {
     };
   }, []);
 
+  // redraw the chart when the value of the dropdown changes
   useEffect(() => {
     if (!containerRef.current || !svgRef.current) return;
 
+    //get the dimensions from the container and draw the chart
     const resizeObserver = new ResizeObserver(
       debounce((entries: ResizeObserverEntry[]) => {
         for (const entry of entries) {
@@ -66,7 +71,10 @@ export function LineChart() {
   );
 }
 
+// load stock data for the selected value in the dropdown
 function loadData(ticker: string, setRows: (rows: StockRow[]) => void) {
+
+  // parse the csv data and update the state with the loaded rows
   d3.csv(`/data/stockdata/${ticker}.csv`).then((raw) => {
     const parsed: StockRow[] = raw
       .map((d) => ({
@@ -83,6 +91,7 @@ function loadData(ticker: string, setRows: (rows: StockRow[]) => void) {
   });
 }
 
+//define the metadata for the different lines to be drawn
 const LINE_META: { key: LineKey; label: string; color: string }[] = [
   { key: "open",  label: "Open",  color: "blue" },
   { key: "high",  label: "High",  color: "green" },
@@ -90,6 +99,7 @@ const LINE_META: { key: LineKey; label: string; color: string }[] = [
   { key: "close", label: "Close", color: "orange" },
 ];
 
+// function to draw the line chart
 function drawChart(
   svgElement: SVGSVGElement,
   rows: StockRow[],
@@ -97,11 +107,14 @@ function drawChart(
   height: number
 ) {
   const svg = d3.select(svgElement);
-  svg.selectAll("*").remove();
 
+  svg.selectAll("*").remove(); // clear previous redenred content
+
+  // inner width and height of the chart area 
   const innerW = width  - margin.left - margin.right;
   const innerH = height - margin.top  - margin.bottom;
 
+  // define a clip path to prevent drawing outside the defined chart area
   svg.append("defs")
     .append("clipPath")
     .attr("id", "line-clip")
@@ -111,10 +124,12 @@ function drawChart(
     .attr("width",  innerW)
     .attr("height", innerH);
 
+  // calculate the x and y scales based on the data extents
   const xExtent   = d3.extent(rows, (d) => d.date) as [Date, Date];
   const allValues = rows.flatMap((d) => [d.open, d.high, d.low, d.close]);
   const yExtent   = d3.extent(allValues) as [number, number];
 
+  // create scales for x and y axes
   const xScale = d3.scaleTime()
     .domain(xExtent)
     .range([margin.left, width - margin.right]);
@@ -123,6 +138,7 @@ function drawChart(
     .domain([yExtent[0] * 0.98, yExtent[1] * 1.02])
     .range([height - margin.bottom, margin.top]);
 
+  // draw x and y axes
   const xAxisG = svg.append("g")
     .attr("transform", `translate(0, ${height - margin.bottom})`)
     .call(
@@ -135,6 +151,7 @@ function drawChart(
     .attr("transform", `translate(${margin.left}, 0)`)
     .call(d3.axisLeft(yScale).ticks(6));
 
+  // axis labels and chart title
   svg.append("g")
     .attr("transform", `translate(18, ${height / 2}) rotate(-90)`)
     .append("text")
@@ -155,14 +172,16 @@ function drawChart(
     .style("font-weight", "bold")
     .text(`${(d3.select("#bar-select").node() as HTMLSelectElement)?.value ?? ""} Stock Price`);
 
-  const linesG = svg.append("g").attr("clip-path", "url(#line-clip)");
+  const linesG = svg.append("g").attr("clip-path", "url(#line-clip)"); // group for the lines with clip path applied
 
+  // generate line paths for each stock price type 
   const lineGen = (key: LineKey, xS: d3.ScaleTime<number, number>) =>
     d3.line<StockRow>()
       .x((d) => xS(d.date))
       .y((d) => yScale(d[key]))
       .defined((d) => !isNaN(d[key]));
 
+  // draw lines for each stock price type
   LINE_META.forEach(({ key, color }) => {
     linesG.append("path")
       .datum(rows)
@@ -173,6 +192,7 @@ function drawChart(
       .attr("d", lineGen(key, xScale));
   });
 
+  // draw legend 
   const legend = svg.append("g")
     .attr("transform", `translate(${width - margin.right + 10}, ${margin.top})`);
 
@@ -193,6 +213,7 @@ function drawChart(
   const scrollBarH = 8;
   const scrollY = height - margin.bottom + 30;
 
+  // Background track 
   svg.append("rect")
     .attr("x", margin.left)
     .attr("y", scrollY)
@@ -201,6 +222,7 @@ function drawChart(
     .attr("rx", 4)
     .attr("fill", "#ccc");
 
+  // scroll thumb
   const scrollThumb = svg.append("rect")
     .attr("x", margin.left)
     .attr("y", scrollY)
@@ -210,6 +232,7 @@ function drawChart(
     .attr("fill", "#888")
     .attr("cursor", "pointer");
 
+  // update the position and width of the scroll thumb based on the current zoom
   function updateScrollThumb(transform: d3.ZoomTransform) {
     const scale = transform.k;
     const thumbW = Math.max(innerW / scale, 20);
@@ -223,7 +246,7 @@ function drawChart(
       .attr("width", thumbW);
   }
 
-  // Zoom + pan
+  // Zoom and pan
   const zoom = d3.zoom<SVGRectElement, unknown>()
     .scaleExtent([1, 40])
     .translateExtent([[margin.left, 0], [width - margin.right, height]])
@@ -231,12 +254,14 @@ function drawChart(
     .on("zoom", (event: d3.D3ZoomEvent<SVGRectElement, unknown>) => {
       const newX = event.transform.rescaleX(xScale);
 
+      // update x-axis with new scale
       xAxisG.call(
         d3.axisBottom(newX)
           .ticks(8)
           .tickFormat(d3.timeFormat("%b %Y") as any)
       );
 
+      // update line paths with new x scale
       LINE_META.forEach(({ key }) => {
         linesG.select(`.line-${key}`)
           .attr("d", lineGen(key, newX)(rows));
@@ -245,7 +270,7 @@ function drawChart(
       updateScrollThumb(event.transform);
     });
 
-  // Overlay rect captures zoom/pan pointer events
+  // overlay rect captures zoom/pan pointer events
   const overlay = svg.append("rect")
     .attr("x", margin.left)
     .attr("y", margin.top)
@@ -255,7 +280,7 @@ function drawChart(
     .attr("cursor", "grab")
     .call(zoom);
 
-  // Drag scrollbar thumb to pan
+  // drag scrollbar thumb to pan
   let dragStartX = 0;
   let dragStartTransform: d3.ZoomTransform = d3.zoomIdentity;
 
