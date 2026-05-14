@@ -13,7 +13,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-full w-full">
       <header className="bg-zinc-400 text-white p-2 flex flex-row align-center">
-        <h2 className="text-left text-2xl">Homework 3</h2>
+        <h2 className="text-left text-2xl">Homework 4</h2>
         <label htmlFor="bar-select" className="mx-2">Select a category:
           <select id = 'bar-select' className="bg-white text-black p-2 rounded mx-2">
               <RenderOptions stockList = {stockList} />
