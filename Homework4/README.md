@@ -1,40 +1,82 @@
-# Homework 4 Templates
+# Homework 4 
 
-This folder contains two parts, client and server.
+# Homework 4: Full-Stack Stock Visualization
 
-## Server
+## 1. Install Client Dependencies
 
-For the server part, make sure you have the respective packages installed.
-
+```bash
+cd client
+npm install
 ```
-pip install -r requirements.txt
+npm install will install all dependecies listed in package.json for the frontend
+
+## 2. Install Server Dependencies
+
+```bash
+cd server
+pip install fastapi uvicorn motor pymongo pydantic
 ```
 
-Secondly, make sure you have already installed and started your mongoDB local server.
-For example, for mongodb managed with homebrew, run:
+## 3. Start MongoDB
 
+### Install MongoDB
+
+Mac:
+```bash
+brew tap mongodb/brew
+brew install mongodb-community
 ```
+
+Windows:
+
+Download and install from: https://www.mongodb.com/try/download/community
+
+### Start MongoDB
+
+Mac:
+```bash
 brew services start mongodb-community
 ```
 
-Then, put your data into database with:
-
+Windows:
+```bash
+mongod
 ```
+
+## 4. Import the Data
+
+ENsure MongoDB is running, then from the `server/` directory:
+```bash
 python import_data.py
 ```
 
-Finally, start your api server by,
+There should be 4 collections imported MongoDB:
+- `stock_list`
+- `stock_prices`
+- `stock_news`
+- `tsne_data`
 
+## 5. Run the FastAPI Backend
+
+From the `server/` directory:
+```bash
+uvicorn main:app --reload
 ```
-uvicorn main:app --reload --port 8000
-```
 
-## Client
+The API will be available at `http://localhost:8000`.
 
-For the client part, it should mostly the same as your Homework 4. The only difference in this template is the data fetching part, as the example shown in `App.tsx`, that fetch the data for the drop-down menu with 20 different stocks. You can easily transfer that part into `js` version if needed.
 
-```
-cd client
-npm install
+## 6. Run the React Frontend
+
+From the `client/` directory:
+```bash
 npm run dev
 ```
+
+The app will be available at `http://localhost:5173`, go to `http://localhost:5173` on the browser to see the app
+
+## 7. Assumptions and Known Issues
+
+- MongoDB must be running before starting the backend or importing data.
+- The backend must be running before starting the frontend.
+- Data files must be placed in `server/data/`
